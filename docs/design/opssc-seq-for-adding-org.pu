@@ -1,0 +1,87 @@
+@startuml
+
+title Adding NewOrg to the consortium
+hide footbox
+skinparam maxMessageSize 200
+skinparam ParticipantPadding 20
+skinparam BoxPadding 10
+
+actor "NewOrg Admin" as newOrgAdmin
+actor "Org1's Admin" as org1Admin
+actor "Org2's Admin" as org2Admin
+
+box "API servers" #White
+participant "Org1" as org1API
+participant "Org2" as org2API
+participant "NewOrg" as newOrgAPI
+end box
+
+box "OpsSC chaincodes and ops-channel" #White
+participant "cousortium_ops" as consortiumCC
+participant "channel_ops" as channelCC
+participant "ops-channel" as opsChannel
+end box
+
+box "Agents" #White
+participant "Org1" as org1Agent
+participant "Org2" as org2Agent
+participant "NewOrg" as newOrgAgent
+end box
+
+box "NewOrg's nodes" #White
+participant "Peer" as newOrgPeer
+participant "Orderer" as newOrgOrderer
+end box
+
+== Join NewOrg to the consortium ==
+newOrgAdmin -> org1Admin: 0-1. Request to join the consortium (via e-mail)
+org1Admin --> newOrgAdmin: 0-2. URL for Org1's API server and the temporary limited credentials
+newOrgAdmin -> org1API: 1-1. Send a proposal to add an Org (Args: NewOrg's MSP info)
+org1API -> consortiumCC: 1-2. Request a proposal to add an Org\n(Args: NewOrg's MSP info)
+
+newOrgAdmin -> org2Admin: 0-1'. Request to join the consortium (via e-mail)
+org2Admin --> newOrgAdmin: 0-2'. URL for Org2's API server and the temporary limited credentials
+newOrgAdmin -> org2API: 1-1'. Send a proposal to add an Org (Args: NewOrg's MSP info)
+org2API -> consortiumCC: 1-2'. Request a proposal to add an Org\n(Args: NewOrg's MSP info)
+activate consortiumCC
+consortiumCC -> consortiumCC: 1-3. Compare MSPs\nfrom Org1 and Org2
+alt MSPs do not match each other
+  consortiumCC --> org2API: Reject
+else MSPs match each other
+  consortiumCC --> org2API: Success
+else MSPs match each other &&\nConsortiumVotingPolicy has been satisfied.(e.g., MAJORITY of members)
+  consortiumCC -> channelCC: 1-4. Add NewOrg to ops-channel
+  channelCC --> org2Agent: ChaincodeEvent to add NewOrg to ops-channel
+  channelCC --> org1Agent:
+  consortiumCC --> org2API: Successºº
+end
+deactivate consortiumCC
+org2API --> newOrgAdmin: Accepted to join the consortium
+
+== Add NewOrg to ops-channel ==
+note over consortiumCC: NOTE: Must have enough information (MSP info, Orderer endpoints etc.) to add NewOrg to ops-channel for the following processes. 
+note over org2Agent: NOTE: Need to add a feature that agents automatically create a configtx and the signatures to add NewOrg and register them to channel_ops.
+org2Agent -> org2Agent: Create a configtx to add NewOrg to ops-channel
+org2Agent -> channelCC: Register the configtx
+channelCC -> org1Agent: ChaincodeEvent to collect signatures for the configtx
+org1Agent -> org1Agent: Create the signature for the configtx
+org1Agent -> channelCC: Register the signature
+channelCC -> org2Agent: 1-5. Notify UpdateEvent
+org2Agent -> opsChannel: 1-6. Update to add NewOrg
+
+== Make NewOrg's nodes ready ==
+create newOrgOrderer
+newOrgAdmin -> newOrgOrderer: 2-1-1. Launch
+create newOrgPeer
+newOrgAdmin -> newOrgPeer: 2-1-2. Launch
+create newOrgAPI
+newOrgAdmin -> newOrgAPI: 2-1-3. Launch
+create newOrgAgent
+newOrgAdmin -> newOrgAgent: 2-1-4. Launch (Args: URL for an API server and the temporary limited credentials as an initial endpoint)
+newOrgAgent -> org2API: 2-2. Check if NewOrg has already been added to ops-channel
+org2API --> newOrgAgent: Yes
+newOrgAgent -> org2API: 2-3. Get the config block of ops-channel
+org2API --> newOrgAgent: Config block
+newOrgAgent -> newOrgOrderer: 2-4-1. Setup the orderer\nto join ops-channel
+newOrgAgent -> newOrgPeer: 2-4-2. Setup the peer to join ops-channel\nand deploy OpsSC\nchaincodes to ops-channel
+@enduml
