@@ -15,14 +15,14 @@
     "body-parser": "^1.20.1",
     "cors": "^2.8.5",
     "express": "^4.17.1",
-    "fabric-network": "^2.2.17",
+    "fabric-network": "^2.2.18",
     "fs-extra": "^9.1.0",
     "js-yaml": "^3.14.1",
     "morgan": "^1.10.0",
     "opssc-common": "file:../../common/src",
     "simple-git": "^3.16.0",
     "winston": "^3.3.3",
-    "ws": "^7.5.4"
+    "ws": "^7.5.10"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.1",
